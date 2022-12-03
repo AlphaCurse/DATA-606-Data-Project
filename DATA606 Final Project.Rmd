@@ -1,0 +1,139 @@
+---
+title: "Brown-Project"
+author: "Tyler Brown"
+date: "2022-12-02"
+output: pdf_document
+---
+
+# Abstract
+
+The Hotel booking dataset describes the hotel demand between July of 2015 and August of 2017. The data has two different types of hotels: resort hotel and city hotel. There are 31 variables describing 40,060 observations of resort hotels and 79,330 observations of city hotels. Each of the observations represents a hotel booking. All data pertaining to hotel or customer identification were removed for confidentiality.
+
+
+# Overview
+
+The data is collected by Hotel Booking Demand Datasets available through ScienceDirect.com, written by Nuno Antonio, Ana Almeida, and Luis Nunes in February 2019. Additionally, the observational study is openly available from Kaggle.com. The data was cleaned by Thomas Mock and Antoine Bichat on February 11, 2020. 
+
+The quantitative dependent variables within the dataset are Children and Babies. The qualitative independent variable is the Hotel as it facilitates the name of the hotel. Additionally, Is_Canceled and Adults are quantitative independent variables as they provide the total number of adults under the reservation. But what is the probability of the customer's that cancel their reservation have a child or baby between the two different hotels? The variables will assist in answering this research question.
+
+# Summary Statistics
+
+```{r include=FALSE}
+# library
+library(tidyverse)
+library(caTools)
+library(ROCR)
+# load data from GitHub repository
+path = 'https://raw.githubusercontent.com/AlphaCurse/DATA-606-Data-Project/main/hotel_bookings.csv'
+df = read.csv(path)
+# select columns of data necessary
+df = df %>%
+select(1, 2, 10, 11, 12)
+df[is.na(df)] = 0
+```
+
+The Hotel show the total amount of reservations made. The Is_Canceled show the average cancellations being 0.37. The Adults show the average number of adults per reservation being 1.856 as well as the median amount of adults per reservation at 2. The Children show the average number of children being 0.1039 over all reservations. The Babies show the average number of babies being 0.0079 over all reservations.
+
+```{r Summary}
+summary(df)
+```
+
+# Data Visualizations
+
+The BarPlot below shows cancellations between the two hotels, where 1 represents a cancellation and 0 does not. It can be concluded that city hotels had more reservations, the most cancellations and not.
+
+```{r Hotel Cancellations, echo=FALSE}
+barplot(table(df$hotel, df$is_canceled), 
+        main="Hotel Cancellations", 
+        xlab="Hotel", ylab="Amount", 
+        col=c("blue", "red"),
+        ylim=c(0,50000), beside = TRUE)
+legend("topright", cex = 0.5,
+       c("City Hotel","Resort Hotel"),
+       fill = c("blue","red"))
+```
+
+Due to this inequality among the hotel volume, let's identify the percentage of cancellations per hotel.
+
+```{r}
+hotel_group = df %>%
+  group_by(hotel,is_canceled) %>%
+  count(is_canceled)
+hotel_group
+```
+```{r}
+city = round((33102/(46228+33102))*100,2)
+print(paste0("City Hotels have a ", city,"% cancellation rate."))
+
+resort = round((11122/(11122+28938))*100,2)
+print(paste0("Resort Hotels have a ", resort,"% cancellation rate."))
+```
+
+
+Now lets take a look at the total reservations of children with or without adults. As we can see, most of the reservations with children were made with 2 adults as well. It is shown there are a few reservations with children made without an adult on the reservation.
+
+```{r echo=FALSE}
+barplot(table(df$children, df$adults), 
+        main="Adults with Children", 
+        xlab="Adults", ylab="Children", 
+        col=c("brown"),
+        ylim=c(0,100000),xlim=c(0,10))
+```
+
+
+We can analyze this further and see numerical values of the total reservations made with the amount of adults, children, and the corresponding total.
+
+```{r}
+adult_child = df %>%
+  group_by(adults,children) %>%
+  count(children)
+adult_child
+```
+
+
+# Statistical Output
+
+
+## Logistic Regression Model 
+
+```{r echo=FALSE}
+library(caTools)
+library(ROCR)
+library(ISLR)
+
+#Split Dataset
+split = sample.split(df, SplitRatio = 0.8)
+
+train = subset(df, split == "TRUE")
+test = subset(df, split == "FALSE")
+
+#Training Model
+logistic_model = glm(is_canceled ~ children + babies,
+                     data=train,
+                     family="binomial")
+logistic_model
+
+#Predict test data
+predict_reg = predict(logistic_model,
+                      test, type="response")
+```
+
+From the Logistic Regression model, we have an R-squared of 0.001 and an accuracy of 0. The Confusion Matrix table shows a low percentage of successful true positives and true negatives. These results are dramatically low, therefore the model did not fit the data well and has a low predictive power.
+
+```{r Prediction Accuracy}
+#Evaluating Accuracy/Confusion Matrix
+print(paste0("The R-squared is ",with(summary(logistic_model), 1 - deviance/null.deviance)))
+missing_class = mean(predict_reg != test$is_canceled)
+print(paste0('Accuracy = ', 1 - missing_class))
+table(test$is_canceled, predict_reg)
+```
+
+
+# Conclusion
+
+To conclude, the probability of the customer's that cancel their reservation have a child or baby between the hotels cannot be accurately determined using the Logistic Regression model. The Hotel Booking dataset has an abundance of data but the data is not diverse enough to use for predictive modeling. The R-squared and accuracy are too low, therefore I would not recommend implementing this model.
+
+
+## Limitations
+
+The analysis is important to draw a correlation between reservations with children and reservation cancellations. Hotel analysts could use this data to prepare employees for cancellations due to children or babies. This analysis was limited due to the data provided and the lack of transparency of hotel information.
